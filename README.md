@@ -19,3 +19,84 @@ enable_uart=1
 # passwd pi
 ~~~
 Выполнение команды с правами суперпользователя позволяет обойти ограничение на минимальную длину пароля. Я не собираюсь открывать доступ по ssh по этому задал короткий удобный пароль, отличный от дефолтного. Никогда так не делайте, если собираетесь использовать для доступа к устройству интерфейсы, отличные от UART ).
+
+## Step 2 connect gamepad
+Опущу процедуру настройки сети. Проще всего подключиться к WiFi, запустив псевдографическую утилиту paspi-config. 
+Процедура подключения джойстика несколько видоизменилась с тех пор, как в сети начали ходить мануалы по подключению джойстика. [Самый старый мануал](http://www.pabr.org/sixlinux/sixlinux.en.html) подразумевает сборку специальной утилиты для определения mac-адреса геймпада. Однако, последние версии стека [Bluez](http://www.bluez.org/) поддерживают более "цивилизованный" способ подключения. Моя инструкция является компиляцией того, что я нашел [здесь](https://pimylifeup.com/raspberry-pi-playstation-controllers/) и [здесь](https://raspberrypi.stackexchange.com/questions/75000/connecting-pi3-modelb-with-a-sony-ps3-dualshock-controller). Ни одна из этих исходных инструкций не заработала сама по себе, увы.
+Итак, для начала, устанавливаем и настраиваем нужные пакеты и перезагружаем устройство.
+~~~
+# apt-get install bluetooth libbluetooth3
+# systemctl enable bluetooth.service
+# usermod -G bluetooth -a pi
+# reboot
+~~~
+Входим в инструмент конфигурации bluetooth и запускаем сканирование эфира:
+~~~
+# bluetoothctl
+agent on
+default-agent
+scan on
+~~~
+вывод должен быть таким:
+~~~
+# bluetoothctl
+Agent registered
+[bluetooth]# agent on
+Agent is already registered
+[bluetooth]# default-agent
+Default agent request successful
+[bluetooth]# scan on
+Discovery started
+[CHG] Controller B8:27:EB:F2:88:85 Discovering: yes
+~~~
+После того, как устройство начало сканировать эфир и выдавать что-то вроде:
+~~~
+[NEW] Device CE:5A:24:7B:A8:33 Mi Band 3
+[NEW] Device E4:68:14:74:F4:77 Mi Band 3
+[NEW] Device C8:F0:10:D0:13:4B Gear S3 (09A5) LE
+[CHG] Device CE:5A:24:7B:A8:33 UUIDs: 0000fee0-0000-1000-8000-00805f9b34fb
+[CHG] Device C8:F0:10:D0:13:4B RSSI: -99
+~~~
+Подключаем джойстик через USB-OTG кабель к устройству (именно по этому мы всё еще не вывели консоль на USB порт). Пракически сразу видим сообщение:
+~~~
+[NEW] Device 18:33:C7:BB:52:2B Sony PLAYSTATION(R)3 Controller Authorize service
+[agent] Authorize service 00001124-0000-1000-8000-00805f9b34fb (yes/no):
+~~~
+Набираем
+~~~
+yes
+~~~
+Видим:
+~~~
+[CHG] Device 18:33:C7:BB:52:2B Trusted: yes
+[CHG] Device 18:33:C7:BB:52:2B UUIDs: 00001124-0000-1000-8000-00805f9b34fb
+[CHG] Device 18:33:C7:BB:52:2B Class: 0x00001f00
+~~~
+Отсоединяем USB кабель. Наблюдаем, как джойстик привязался и подключился:
+~~~
+[CHG] Device 18:33:C7:BB:52:2B Connected: yes
+[CHG] Device 18:33:C7:BB:52:2B Icon is nil
+[Sony PLAYSTATION(R)3 Controller]#
+~~~
+Светодиоды на джойстике должны перестать мигать, светодиод 1 продолжает гореть, сигнализируя о том, что устройство готово к работе. Выходим из bluetoothctl, набрав 'quit'.
+Убедимся, что джойстик подключается автоматически. Для этого выключим устройство и подождем, пока все светодиоды на джойстике погаснут. После этого перезагружаем устройство и включаем джойстик, нажав кнопку 'PS3'. Светодиоды некоторое время поморгают, а потом загорится светодиод номер 1. Выполним команду
+~~~
+$ ls /dev/input
+~~~
+и убедимся, что в системе имеется устройство js0 - это и есть наш геймпад.
+
+## Step 3 gamepad testing
+Для проверки джойстика выполним команды:
+~~~
+# apt install joystick
+$ jstest /dev/input/js0
+~~~
+Увидим следующий вывод:
+~~~
+Driver version is 2.1.0.
+Joystick (Sony PLAYSTATION(R)3 Controller) has 6 axes (X, Y, Z, Rx, Ry, Rz)
+and 17 buttons (BtnA, BtnB, BtnX, BtnY, BtnTL, BtnTR, BtnTL2, BtnTR2, BtnSelect, BtnStart, BtnMode, BtnThumbL, BtnThumbR, (null), (null), (null), (null)).
+Testing ... (interrupt to exit)
+Axes:  0:     0  1:     0  2:-32767  3:     0  4:     0  5:-32767 Buttons:  0:off  1:off  2:off  3:off  4:off  5:off  6:off  7:off  8:off  9:off 10:off 11:off 12:off 13:off 14:off 15:off 16:off
+~~~
+Значения в последней строке будут динамически изменяться при нажатии на соответствующую кнопку джойстика. Для выхода из теста воспользуйтесь стандартной комбинацией ctl+C.
