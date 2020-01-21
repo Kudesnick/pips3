@@ -59,6 +59,7 @@ dtparam=audio=on
 # Enable UART console
 enable_uart=1
 # Enable USB UART console
+# if uncomment this parameter then add parameter 'modules-load=dwc2,g_serial' into cmdline.txt after parameter 'rootwait'
 dtoverlay=dwc2
 
 [pi4]
@@ -68,3 +69,4 @@ max_framebuffers=2
 
 [all]
 #dtoverlay=vc4-fkms-v3d
+start_x=0
