@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import evdev, asyncio, pprint, sys
+from pathlib import Path
 
 ps3dev = []
 ev_key = dict()
@@ -27,6 +28,10 @@ for device in ps3dev:
     if alist != None:
         ev_abs[str(device.path)] = {i: device.absinfo(i).value for i in alist}
         #print(ev_abs[device.path])
+
+bat = list(Path('/sys/class/power_supply').glob('sony_controller_battery_*'))[0] / Path('capacity')
+with open(str(bat), 'r') as f:
+    print('battery: {}%'.format(f.readline().strip()))
 
 def jprint(_sep: str = ';', _end: str = '\r'):
     global ev_key, ev_abs
