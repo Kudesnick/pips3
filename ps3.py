@@ -33,23 +33,22 @@ bat = list(Path('/sys/class/power_supply').glob('sony_controller_battery_*'))[0]
 with open(str(bat), 'r') as f:
     print('battery: {}%'.format(f.readline().strip()))
 
-rumble = evdev.ff.Rumble(strong_magnitude=0x0000, weak_magnitude=0xffff)
-effect_type = evdev.ff.EffectType(ff_rumble_effect=rumble)
-duration_ms = 1000
+def rumble_go(device):
+    rumble = evdev.ff.Rumble(strong_magnitude = 0xfff, weak_magnitude = 0xfff)
+    duration_ms = 100
 
-effect = evdev.ff.Effect(
-    evdev.ecodes.FF_RUMBLE, -1, 0,
-    evdev.ff.Trigger(0, 0),
-    evdev.ff.Replay(duration_ms, 0),
-    effect_type
-)
+    effect = evdev.ff.Effect(
+        evdev.ecodes.FF_RUMBLE, -1, 0,
+        evdev.ff.Trigger(0, 0),
+        evdev.ff.Replay(duration_ms, 1000),
+        evdev.ff.EffectType(ff_rumble_effect=rumble)
+    )
 
-dev = ps3dev[1]
-repeat_count = 1
-effect_id = dev.upload_effect(effect)
-dev.write(evdev.ecodes.EV_FF, effect_id, repeat_count)
-time.sleep(1)
-dev.erase_effect(effect_id)
+    repeat_count = 1
+    effect_id = device.upload_effect(effect)
+    device.write(evdev.ecodes.EV_FF, effect_id, repeat_count)
+    #time.sleep(2)
+    #device.erase_effect(effect_id)
 
 def jprint(_sep: str = ';', _end: str = '\r'):
     global ev_key, ev_abs
@@ -66,6 +65,8 @@ async def print_events(device):
     async for event in device.async_read_loop():
         if event.type == evdev.ecodes.EV_KEY:
             ev_key[str(device.path)][event.code] = event.value
+            if (event.code ==  list(ev_key[str(device.path)].keys())[0] and event.value == 1):
+                rumble_go(device)
             #print(ev_key[str(device.path)])
         if event.type == evdev.ecodes.EV_ABS:
             ev_abs[str(device.path)][event.code] = event.value
